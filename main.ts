@@ -14,16 +14,28 @@
 // Run it the way the grader does:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
+const POST_PATH = join(BOT_DIR, 'POST.json');
+let post: unknown;
 try {
-  copyFileSync(join(BOT_DIR, 'POST.json'), join(OUTPUT_DIR, 'POST.json'));
+  post = JSON.parse(readFileSync(POST_PATH, 'utf8'));
 } catch (err) {
-  console.error(`Could not copy POST.json from ${BOT_DIR}: ${(err as Error).message}`);
+  console.error(`POST.json could not be read from ${BOT_DIR}: ${(err as Error).message}`);
+  process.exit(1);
+}
+if (typeof post !== 'object' || post === null || typeof (post as { url?: unknown }).url !== 'string' || !/^https:\/\/x\.com\/[^/]+\/status\/\d+$/.test((post as { url: string }).url)) {
+  console.error('POST.json must name the posted X status: {"url": "https://x.com/<handle>/status/<id>"}');
+  process.exit(1);
+}
+try {
+  copyFileSync(POST_PATH, join(OUTPUT_DIR, 'POST.json'));
+} catch (err) {
+  console.error(`POST.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
   process.exit(1);
 }
